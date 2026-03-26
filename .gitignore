@@ -31,6 +31,6 @@ todo.db
 # Logs
 *.log
 
-# User requested ignore
-README.md
-readme.md
+## User requested ignore
+#README.md
+#readme.md
