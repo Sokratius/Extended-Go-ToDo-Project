@@ -33,11 +33,10 @@ type errorResponse struct {
 
 // @Summary Register
 // @Tags auth
-// @Description create account
 // @ID create-account
 // @Accept json
 // @Produce json
-// @Param input body users.User true "account info"
+// @Param input body authRequest true "account info"
 // @Success 200 {integer} integer 1
 // @Success 201 {integer} integer 1
 // @Failure 400 {object} errorResponse
@@ -71,16 +70,16 @@ func (h *Handler) register(c *gin.Context) {
 	})
 }
 
-// @Summary      Вход пользователя
-// @Description  Авторизация пользователя по username и паролю
+// @Summary      Login
+// @Description  Authorization with username and password
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body  authRequest  true  "Данные для входа"
-// @Success      200  {object}  map[string]interface{}  "id, username и сообщение"
-// @Failure      400  {object}  map[string]string  "Ошибка валидации"
-// @Failure      401  {object}  map[string]string  "Неверные учётные данные"
-// @Failure      500  {object}  map[string]string  "Внутренняя ошибка"
+// @Param        request  body  authRequest  true "account info"
+// @Success      200  {object}  errorResponse
+// @Failure      400  {object}  errorResponse
+// @Failure      401  {object}  errorResponse
+// @Failure      500  {object}  errorResponse
 // @Router       /login [post]
 func (h *Handler) login(c *gin.Context) {
 	var req authRequest

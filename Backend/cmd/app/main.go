@@ -21,14 +21,14 @@ import (
 
 // @title AirFlow
 // @version 1.0
-// @description AirFlow description part
+// @description AirFlow API documentation
 
-// @host localhost:8000
+// @host localhost:8080
 // @BasePath /
 
 // @securityDefinitions.apiKey ApiKeyAuth
 // @in header
-// @name AirFlow
+// @name X-User-ID
 func main() {
 
 	if err := godotenv.Load(); err != nil {

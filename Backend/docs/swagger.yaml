@@ -1,14 +1,37 @@
 basePath: /
 definitions:
-  users.User:
+  tasks.Task:
     properties:
       created_at:
         type: string
+      done:
+        type: boolean
       id:
         type: integer
+      title:
+        type: string
       updated_at:
         type: string
-      username:
+      user_id:
+        type: integer
+    type: object
+  tasks.createTaskRequest:
+    properties:
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  tasks.errorResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  tasks.updateTaskRequest:
+    properties:
+      done:
+        type: boolean
+      title:
         type: string
     type: object
   users.authRequest:
@@ -26,10 +49,10 @@ definitions:
       message:
         type: string
     type: object
-host: localhost:8000
+host: localhost:8080
 info:
   contact: {}
-  description: AirFlow description part
+  description: AirFlow API documentation
   title: AirFlow
   version: "1.0"
 paths:
@@ -37,9 +60,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Авторизация пользователя по username и паролю
+      description: Authorization with username and password
       parameters:
-      - description: Данные для входа
+      - description: account info
         in: body
         name: request
         required: true
@@ -49,36 +72,29 @@ paths:
       - application/json
       responses:
         "200":
-          description: id, username и сообщение
+          description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/users.errorResponse'
         "400":
-          description: Ошибка валидации
+          description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/users.errorResponse'
         "401":
-          description: Неверные учётные данные
+          description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/users.errorResponse'
         "500":
-          description: Внутренняя ошибка
+          description: Internal Server Error
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Вход пользователя
+            $ref: '#/definitions/users.errorResponse'
+      summary: Login
       tags:
       - auth
   /register:
     post:
       consumes:
       - application/json
-      description: create account
+      description: Create account
       operationId: create-account
       parameters:
       - description: account info
@@ -86,7 +102,7 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/users.User'
+          $ref: '#/definitions/users.authRequest'
       produces:
       - application/json
       responses:
@@ -117,9 +133,153 @@ paths:
       summary: Register
       tags:
       - auth
+  /tasks:
+    get:
+      consumes:
+      - application/json
+      description: Get list of tasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/tasks.Task'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Tasks
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: create task
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tasks.createTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: new task
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/tasks.Task'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create Task
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete task by ID
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete Task
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: Update Task Fields
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Task
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/tasks.updateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: updated_task
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/tasks.Task'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/tasks.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update Task
+      tags:
+      - tasks
 securityDefinitions:
   ApiKeyAuth:
     in: header
-    name: AirFlow
+    name: X-User-ID
     type: apiKey
 swagger: "2.0"

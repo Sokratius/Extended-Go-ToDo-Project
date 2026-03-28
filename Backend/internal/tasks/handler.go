@@ -35,6 +35,20 @@ type updateTaskRequest struct {
 	Done  *bool   `json:"done"`
 }
 
+type errorResponse struct {
+	Message string `json:"message"`
+}
+
+// @Summary Get Tasks
+// @Description  Get list of tasks
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Success      200  {object} map[string][]tasks.Task
+// @Failure      401  {object}  errorResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /tasks [get]
+// @Security ApiKeyAuth
 func (h *Handler) list(c *gin.Context) {
 	userID, ok := h.userIDFromHeader(c)
 	if !ok {
@@ -53,6 +67,16 @@ func (h *Handler) list(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"tasks": items})
 }
 
+// @Summary Create Task
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        input body createTaskRequest true "create task"
+// @Success      201  {object} map[string][]tasks.Task "new task"
+// @Failure      401  {object} errorResponse
+// @Failure      500  {object} errorResponse
+// @Router       /tasks [post]
+// @Security ApiKeyAuth
 func (h *Handler) create(c *gin.Context) {
 	userID, ok := h.userIDFromHeader(c)
 	if !ok {
@@ -80,6 +104,20 @@ func (h *Handler) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, task)
 }
 
+// @Summary Update Task
+// @Description  Update Task Fields
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id    path int true "Task ID"
+// @Param        input body updateTaskRequest true "Update Task"
+// @Success      200  {object} map[string][]tasks.Task "updated_task"
+// @Failure      401  {object} errorResponse
+// @Failure      403  {object} errorResponse
+// @Failure      404  {object} errorResponse
+// @Failure      500  {object} errorResponse
+// @Router       /tasks/{id} [put]
+// @Security ApiKeyAuth
 func (h *Handler) update(c *gin.Context) {
 	userID, ok := h.userIDFromHeader(c)
 	if !ok {
@@ -120,6 +158,17 @@ func (h *Handler) update(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
+// @Summary Delete Task
+// @Description  Delete task by ID
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param 		 id path int true "Task ID"
+// @Success      200  {object} map[string]string
+// @Failure      401  {object} errorResponse
+// @Failure      500  {object} errorResponse
+// @Router       /tasks/{id} [delete]
+// @Security ApiKeyAuth
 func (h *Handler) delete(c *gin.Context) {
 	userID, ok := h.userIDFromHeader(c)
 	if !ok {
