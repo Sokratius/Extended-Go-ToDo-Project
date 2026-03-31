@@ -27,6 +27,23 @@ type authRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type errorResponse struct {
+	Message string `json:"message"`
+}
+
+// @Summary Register
+// @Tags auth
+// @ID create-account
+// @Accept json
+// @Produce json
+// @Param input body authRequest true "account info"
+// @Success 200 {integer} integer 1
+// @Success 201 {integer} integer 1
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Failure default {object} errorResponse
+// @Router /register [post]
 func (h *Handler) register(c *gin.Context) {
 	var req authRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,6 +70,17 @@ func (h *Handler) register(c *gin.Context) {
 	})
 }
 
+// @Summary      Login
+// @Description  Authorization with username and password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body  authRequest  true "account info"
+// @Success      200  {object}  errorResponse
+// @Failure      400  {object}  errorResponse
+// @Failure      401  {object}  errorResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /login [post]
 func (h *Handler) login(c *gin.Context) {
 	var req authRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
