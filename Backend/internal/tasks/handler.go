@@ -7,15 +7,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"todo-backend/internal/middleware"
 	"todo-backend/internal/users"
 	"todo-backend/pkg/utils"
 )
 
 type Handler struct {
-	service *Service
+	service ServiceInterface
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{service: service}
 }
 
@@ -48,12 +49,9 @@ type errorResponse struct {
 // @Failure      401  {object}  errorResponse
 // @Failure      500  {object}  errorResponse
 // @Router       /tasks [get]
-// @Security ApiKeyAuth
+// @Security     BearerAuth
 func (h *Handler) list(c *gin.Context) {
-	userID, ok := h.userIDFromHeader(c)
-	if !ok {
-		return
-	}
+	userID := middleware.GetUserID(c)
 
 	items, err := h.service.ListByUser(c.Request.Context(), userID)
 	if err != nil {
@@ -76,12 +74,9 @@ func (h *Handler) list(c *gin.Context) {
 // @Failure      401  {object} errorResponse
 // @Failure      500  {object} errorResponse
 // @Router       /tasks [post]
-// @Security ApiKeyAuth
+// @Security     BearerAuth
 func (h *Handler) create(c *gin.Context) {
-	userID, ok := h.userIDFromHeader(c)
-	if !ok {
-		return
-	}
+	userID := middleware.GetUserID(c)
 
 	var req createTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,12 +112,9 @@ func (h *Handler) create(c *gin.Context) {
 // @Failure      404  {object} errorResponse
 // @Failure      500  {object} errorResponse
 // @Router       /tasks/{id} [put]
-// @Security ApiKeyAuth
+// @Security     BearerAuth
 func (h *Handler) update(c *gin.Context) {
-	userID, ok := h.userIDFromHeader(c)
-	if !ok {
-		return
-	}
+	userID := middleware.GetUserID(c)
 
 	taskID, ok := parseTaskID(c)
 	if !ok {
@@ -168,12 +160,9 @@ func (h *Handler) update(c *gin.Context) {
 // @Failure      401  {object} errorResponse
 // @Failure      500  {object} errorResponse
 // @Router       /tasks/{id} [delete]
-// @Security ApiKeyAuth
+// @Security     BearerAuth
 func (h *Handler) delete(c *gin.Context) {
-	userID, ok := h.userIDFromHeader(c)
-	if !ok {
-		return
-	}
+	userID := middleware.GetUserID(c)
 
 	taskID, ok := parseTaskID(c)
 	if !ok {
@@ -194,15 +183,6 @@ func (h *Handler) delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
-}
-
-func (h *Handler) userIDFromHeader(c *gin.Context) (uint, bool) {
-	userID, err := utils.ParseUserIDHeader(c)
-	if err != nil {
-		utils.JSONValidationError(c, err.Error())
-		return 0, false
-	}
-	return userID, true
 }
 
 func parseTaskID(c *gin.Context) (uint, bool) {
