@@ -42,18 +42,18 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(cors.New(cors.Config{
 		// SECURITY: Измените это на конкретный домен для production!
-		AllowOrigins:     []string{"*"}, // TODO: Установить на ["https://yourdomain.com"]
+		AllowOrigins:     []string{getEnv("ALLOWED_ORIGIN", "http://localhost:3000")}, // TODO: Установить на ["https://yourdomain.com"]
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-User-ID"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: false,
+		AllowCredentials: true,
 	}))
 
 	db, err := openDB()
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
-	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}); err != nil {
+	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}, &tasks.AILog{}); err != nil {
 		log.Fatalf("failed to migrate db: %v", err)
 	}
 
