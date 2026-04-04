@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"todo-backend/internal/middleware"
+
 	"todo-backend/pkg/utils"
 )
 
@@ -18,8 +20,8 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router gin.IRouter) {
-	router.POST("/register", h.register)
-	router.POST("/login", h.login)
+	router.POST("/register", middleware.RateLimiter(), h.register)
+	router.POST("/login", middleware.RateLimiter(), h.login)
 }
 
 type authRequest struct {

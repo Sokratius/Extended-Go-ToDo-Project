@@ -42,11 +42,11 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(cors.New(cors.Config{
 		// SECURITY: Измените это на конкретный домен для production!
-		AllowOrigins:     []string{"*"}, // TODO: Установить на ["https://yourdomain.com"]
+		AllowOrigins:     []string{getEnv("ALLOWED_ORIGIN", "http://localhost:3000")}, // TODO: Установить на ["https://yourdomain.com"]
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-User-ID"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: false,
+		AllowCredentials: true,
 	}))
 
 	db, err := openDB()

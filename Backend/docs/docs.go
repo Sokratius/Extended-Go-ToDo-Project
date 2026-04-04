@@ -69,7 +69,6 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Create account",
                 "consumes": [
                     "application/json"
                 ],
