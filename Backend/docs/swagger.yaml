@@ -94,7 +94,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create account
       operationId: create-account
       parameters:
       - description: account info
