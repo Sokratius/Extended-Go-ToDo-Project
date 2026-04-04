@@ -18,6 +18,13 @@ type UserReader interface {
 	GetByID(ctx context.Context, id uint) (*users.User, error)
 }
 
+type ServiceInterface interface {
+	ListByUser(ctx context.Context, userID uint) ([]Task, error)
+	Create(ctx context.Context, userID uint, title string) (*Task, error)
+	Update(ctx context.Context, userID uint, taskID uint, title *string, done *bool) (*Task, error)
+	Delete(ctx context.Context, userID uint, taskID uint) error
+}
+
 type Service struct {
 	repo       Repository
 	userReader UserReader
