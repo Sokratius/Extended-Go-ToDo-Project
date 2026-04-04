@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
-	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}); err != nil {
+	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}, &tasks.AILog{}); err != nil {
 		log.Fatalf("failed to migrate db: %v", err)
 	}
 
