@@ -15,6 +15,7 @@ import (
 
 	_ "todo-backend/docs"
 
+	"todo-backend/internal/middleware"
 	"todo-backend/internal/tasks"
 	"todo-backend/internal/users"
 )
@@ -26,9 +27,10 @@ import (
 // @host localhost:8080
 // @BasePath /
 
-// @securityDefinitions.apiKey ApiKeyAuth
+// @securityDefinitions.apiKey BearerAuth
 // @in header
-// @name X-User-ID
+// @name Authorization
+// @description Enter your bearer token: Bearer <token>
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, using environment variables")
@@ -44,7 +46,7 @@ func main() {
 		// SECURITY: Измените это на конкретный домен для production!
 		AllowOrigins:     []string{"*"}, // TODO: Установить на ["https://yourdomain.com"]
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-User-ID"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: false,
 	}))
@@ -64,7 +66,10 @@ func main() {
 	taskService := tasks.NewService(taskRepo, userService)
 
 	users.NewHandler(userService).RegisterRoutes(r)
-	tasks.NewHandler(taskService).RegisterRoutes(r)
+
+	taskGroup := r.Group("")
+	taskGroup.Use(middleware.AuthRequired())
+	tasks.NewHandler(taskService).RegisterRoutes(taskGroup)
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
