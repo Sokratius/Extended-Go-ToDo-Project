@@ -18,6 +18,7 @@ import (
 	"todo-backend/internal/middleware"
 	"todo-backend/internal/tasks"
 	"todo-backend/internal/users"
+	"todo-backend/internal/notifications"
 )
 
 // @title AirFlow
@@ -55,7 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
-	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}, &tasks.AILog{}); err != nil {
+	if err := db.AutoMigrate(&users.User{}, &tasks.Task{}, &tasks.AILog{}, &notifications.Notification{}); err != nil {
 		log.Fatalf("failed to migrate db: %v", err)
 	}
 
