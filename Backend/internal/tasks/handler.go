@@ -8,14 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"todo-backend/internal/users"
+	//"todo-backend/internal/middleware"
 	"todo-backend/pkg/utils"
 )
 
 type Handler struct {
-	service *Service
+	service ServiceInterface
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{service: service}
 }
 
@@ -24,6 +25,7 @@ func (h *Handler) RegisterRoutes(router gin.IRouter) {
 	router.POST("/tasks", h.create)
 	router.PUT("/tasks/:id", h.update)
 	router.DELETE("/tasks/:id", h.delete)
+	router.POST("/tasks/:id/analyze", h.Analyze)
 }
 
 type createTaskRequest struct {
@@ -196,13 +198,41 @@ func (h *Handler) delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
-func (h *Handler) userIDFromHeader(c *gin.Context) (uint, bool) {
-	userID, err := utils.ParseUserIDHeader(c)
-	if err != nil {
-		utils.JSONValidationError(c, err.Error())
-		return 0, false
+// @Summary Analyze Task with AI
+// @Description Send task to AI to generate summary, tags, and priority
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path int true "Task ID"
+// @Success 200 {object} tasks.Task "analyzed_task"
+// @Failure 401 {object} errorResponse
+// @Failure 403 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /tasks/{id}/analyze [post]
+// @Security BearerAuth
+func (h *Handler) Analyze(c *gin.Context) {
+	userID := uint(1)
+
+	taskID, ok := parseTaskID(c)
+	if !ok {
+		return
 	}
-	return userID, true
+
+	task, err := h.service.AnalyzeTask(c.Request.Context(), userID, taskID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrTaskNotFound):
+			utils.JSONError(c, http.StatusNotFound, err.Error())
+		case errors.Is(err, ErrForbidden):
+			utils.JSONError(c, http.StatusForbidden, err.Error())
+		default:
+			utils.JSONError(c, http.StatusInternalServerError, "failed to analyze task")
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
 }
 
 func parseTaskID(c *gin.Context) (uint, bool) {
@@ -214,3 +244,13 @@ func parseTaskID(c *gin.Context) (uint, bool) {
 	}
 	return uint(parsed), true
 }
+
+func (h *Handler) userIDFromHeader(c *gin.Context) (uint, bool) {
+	userID, err := utils.ParseUserIDHeader(c)
+	if err != nil {
+		utils.JSONValidationError(c, err.Error())
+		return 0, false
+	}
+	return userID, true
+}
+

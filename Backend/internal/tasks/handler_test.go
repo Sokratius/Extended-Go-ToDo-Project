@@ -46,6 +46,17 @@ func (m *mockService) Delete(ctx context.Context, userID, taskID uint) error {
 	return args.Error(0)
 }
 
+func (m *mockService) AnalyzeTask(ctx context.Context, userID uint, taskID uint) (*tasks.Task, error) {
+	args := m.Called(ctx, userID, taskID)
+
+	var task *tasks.Task
+	if args.Get(0) != nil {
+		task = args.Get(0).(*tasks.Task)
+	}
+
+	return task, args.Error(1)
+}
+
 // setupRouter создаёт gin роутер в тестовом режиме.
 // Handler принимает интерфейс — если у тебя сейчас *Service, нужно будет
 // вынести интерфейс (см. комментарий внизу файла).
@@ -349,4 +360,34 @@ func TestDelete_InvalidTaskID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	svc.AssertNotCalled(t, "Delete")
+}
+
+func TestAnalyzeTask(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := new(mockService)
+	handler := tasks.NewHandler(svc)
+
+	r := gin.Default()
+	r.POST("/tasks/:id/analyze", handler.Analyze)
+
+	expectedTask := &tasks.Task{
+		ID:                 2,
+		UserID:             1,
+		Title:              "Testing task",
+		AIGeneratedSummary: "Do this quickly",
+		AIPriority:         "High",
+		AITags:             "test, ai, fast",
+	}
+
+	svc.On("AnalyzeTask", mock.Anything, uint(1), uint(2)).Return(expectedTask, nil)
+
+	req, _ := http.NewRequest(http.MethodPost, "/tasks/2/analyze", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code) 
+	
+	svc.AssertExpectations(t)
 }
