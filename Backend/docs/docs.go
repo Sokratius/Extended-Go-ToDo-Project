@@ -43,7 +43,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/users.errorResponse"
+                            "$ref": "#/definitions/users.authResponse"
                         }
                     },
                     "400": {
@@ -92,16 +92,10 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "integer"
+                            "$ref": "#/definitions/users.authResponse"
                         }
                     },
                     "400": {
@@ -110,20 +104,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/users.errorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/users.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/users.errorResponse"
-                        }
-                    },
-                    "default": {
-                        "description": "",
                         "schema": {
                             "$ref": "#/definitions/users.errorResponse"
                         }
@@ -135,7 +123,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get list of tasks",
@@ -179,7 +167,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "consumes": [
@@ -235,7 +223,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update Task Fields",
@@ -309,7 +297,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete task by ID",
@@ -497,6 +485,20 @@ const docTemplate = `{
                 }
             }
         },
+        "users.authResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "users.errorResponse": {
             "type": "object",
             "properties": {
@@ -507,9 +509,10 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "ApiKeyAuth": {
+        "BearerAuth": {
+            "description": "Enter your bearer token: Bearer \u003ctoken\u003e",
             "type": "apiKey",
-            "name": "X-User-ID",
+            "name": "Authorization",
             "in": "header"
         }
     }

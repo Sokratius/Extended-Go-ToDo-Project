@@ -50,6 +50,15 @@ definitions:
     - password
     - username
     type: object
+  users.authResponse:
+    properties:
+      id:
+        type: integer
+      token:
+        type: string
+      username:
+        type: string
+    type: object
   users.errorResponse:
     properties:
       message:
@@ -80,7 +89,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/users.errorResponse'
+            $ref: '#/definitions/users.authResponse'
         "400":
           description: Bad Request
           schema:
@@ -111,28 +120,20 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            type: integer
         "201":
           description: Created
           schema:
-            type: integer
+            $ref: '#/definitions/users.authResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/users.errorResponse'
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/users.errorResponse'
         "500":
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/users.errorResponse'
-        default:
-          description: ""
           schema:
             $ref: '#/definitions/users.errorResponse'
       summary: Register
@@ -163,7 +164,7 @@ paths:
           schema:
             $ref: '#/definitions/tasks.errorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: Get Tasks
       tags:
       - tasks
@@ -197,7 +198,7 @@ paths:
           schema:
             $ref: '#/definitions/tasks.errorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: Create Task
       tags:
       - tasks
@@ -230,7 +231,7 @@ paths:
           schema:
             $ref: '#/definitions/tasks.errorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: Delete Task
       tags:
       - tasks
@@ -278,7 +279,7 @@ paths:
           schema:
             $ref: '#/definitions/tasks.errorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: Update Task
       tags:
       - tasks
@@ -322,8 +323,9 @@ paths:
       tags:
       - tasks
 securityDefinitions:
-  ApiKeyAuth:
+  BearerAuth:
+    description: 'Enter your bearer token: Bearer <token>'
     in: header
-    name: X-User-ID
+    name: Authorization
     type: apiKey
 swagger: "2.0"

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"todo-backend/internal/middleware"
 	"todo-backend/internal/tasks"
 	"todo-backend/internal/users"
 )
@@ -61,6 +62,27 @@ func (m *mockService) AnalyzeTask(ctx context.Context, userID uint, taskID uint)
 // Handler принимает интерфейс — если у тебя сейчас *Service, нужно будет
 // вынести интерфейс (см. комментарий внизу файла).
 func setupRouter(svc tasks.ServiceInterface) *gin.Engine {
+// fakeAuth — тестовый middleware, который устанавливает userID в gin context,
+// имитируя работу настоящего AuthRequired middleware.
+func fakeAuth(userID uint) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set(middleware.ContextUserID, userID)
+		c.Next()
+	}
+}
+
+// setupRouter создаёт gin роутер в тестовом режиме с fake auth middleware.
+func setupRouter(svc tasks.ServiceInterface, userID uint) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(fakeAuth(userID))
+	h := tasks.NewHandler(svc)
+	h.RegisterRoutes(r)
+	return r
+}
+
+// setupRouterNoAuth создаёт роутер без middleware (userID = 0 в контексте).
+func setupRouterNoAuth(svc tasks.ServiceInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	h := tasks.NewHandler(svc)
@@ -72,7 +94,7 @@ func ptr[T any](v T) *T { return &v }
 
 func TestList_Success(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	expected := []tasks.Task{
 		{ID: 1, UserID: 42, Title: "Buy milk", Done: false},
@@ -82,7 +104,6 @@ func TestList_Success(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -95,28 +116,29 @@ func TestList_Success(t *testing.T) {
 	svc.AssertExpectations(t)
 }
 
-func TestList_MissingHeader(t *testing.T) {
+func TestList_NoAuth(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouterNoAuth(svc)
+
+	// Без middleware userID = 0 -> сервис вернёт user not found
+	svc.On("ListByUser", mock.Anything, uint(0)).Return([]tasks.Task{}, users.ErrUserNotFound)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
-	// заголовок X-User-ID не передаём
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	svc.AssertNotCalled(t, "ListByUser")
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	svc.AssertExpectations(t)
 }
 
 func TestList_UserNotFound(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 99)
 
 	svc.On("ListByUser", mock.Anything, uint(99)).Return([]tasks.Task{}, users.ErrUserNotFound)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
-	req.Header.Set("X-User-ID", "99")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -125,13 +147,12 @@ func TestList_UserNotFound(t *testing.T) {
 
 func TestList_InternalError(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 1)
 
 	svc.On("ListByUser", mock.Anything, uint(1)).Return([]tasks.Task{}, assert.AnError)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
-	req.Header.Set("X-User-ID", "1")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -140,7 +161,7 @@ func TestList_InternalError(t *testing.T) {
 
 func TestCreate_Success(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	created := &tasks.Task{ID: 10, UserID: 42, Title: "Write tests", Done: false}
 	svc.On("Create", mock.Anything, uint(42), "Write tests").Return(created, nil)
@@ -149,7 +170,6 @@ func TestCreate_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
@@ -163,13 +183,12 @@ func TestCreate_Success(t *testing.T) {
 
 func TestCreate_MissingTitle(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	body := `{}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -178,17 +197,16 @@ func TestCreate_MissingTitle(t *testing.T) {
 
 func TestCreate_InvalidTitle(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Create", mock.Anything, uint(42), "").Return(nil, tasks.ErrInvalidTitle)
 
-	// Тут binding:"required" уже отсечёт пустой title раньше сервиса,
+	// Тут binding:"required" отсечёт пустой title раньше сервиса,
 	// поэтому тест проверяет что статус 400 в любом случае.
 	body := `{"title":""}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -196,7 +214,7 @@ func TestCreate_InvalidTitle(t *testing.T) {
 
 func TestCreate_UserNotFound(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Create", mock.Anything, uint(42), "Task").Return(nil, users.ErrUserNotFound)
 
@@ -204,7 +222,6 @@ func TestCreate_UserNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -213,7 +230,7 @@ func TestCreate_UserNotFound(t *testing.T) {
 
 func TestUpdate_Success(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	updated := &tasks.Task{ID: 5, UserID: 42, Title: "Updated", Done: true}
 	svc.On("Update", mock.Anything, uint(42), uint(5), ptr("Updated"), ptr(true)).Return(updated, nil)
@@ -222,7 +239,6 @@ func TestUpdate_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/tasks/5", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -237,13 +253,12 @@ func TestUpdate_Success(t *testing.T) {
 
 func TestUpdate_NoFields(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	body := `{}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/tasks/5", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -252,13 +267,12 @@ func TestUpdate_NoFields(t *testing.T) {
 
 func TestUpdate_InvalidTaskID(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	body := `{"title":"x"}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/tasks/abc", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -267,7 +281,7 @@ func TestUpdate_InvalidTaskID(t *testing.T) {
 
 func TestUpdate_TaskNotFound(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Update", mock.Anything, uint(42), uint(999), ptr("x"), (*bool)(nil)).Return(nil, tasks.ErrTaskNotFound)
 
@@ -275,7 +289,6 @@ func TestUpdate_TaskNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/tasks/999", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -284,7 +297,7 @@ func TestUpdate_TaskNotFound(t *testing.T) {
 
 func TestUpdate_Forbidden(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Update", mock.Anything, uint(42), uint(7), ptr("x"), (*bool)(nil)).Return(nil, tasks.ErrForbidden)
 
@@ -292,7 +305,6 @@ func TestUpdate_Forbidden(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/tasks/7", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
@@ -301,13 +313,12 @@ func TestUpdate_Forbidden(t *testing.T) {
 
 func TestDelete_Success(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Delete", mock.Anything, uint(42), uint(3)).Return(nil)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/tasks/3", nil)
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -321,13 +332,12 @@ func TestDelete_Success(t *testing.T) {
 
 func TestDelete_TaskNotFound(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Delete", mock.Anything, uint(42), uint(999)).Return(tasks.ErrTaskNotFound)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/tasks/999", nil)
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -336,13 +346,12 @@ func TestDelete_TaskNotFound(t *testing.T) {
 
 func TestDelete_Forbidden(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	svc.On("Delete", mock.Anything, uint(42), uint(7)).Return(tasks.ErrForbidden)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/tasks/7", nil)
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
@@ -351,11 +360,10 @@ func TestDelete_Forbidden(t *testing.T) {
 
 func TestDelete_InvalidTaskID(t *testing.T) {
 	svc := new(mockService)
-	router := setupRouter(svc)
+	router := setupRouter(svc, 42)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/tasks/abc", nil)
-	req.Header.Set("X-User-ID", "42")
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)

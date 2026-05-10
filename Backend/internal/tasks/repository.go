@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sort"
 	"sync"
-
+	"strings"
 	"gorm.io/gorm"
 )
 
@@ -15,6 +15,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id uint) (*Task, error)
 	Update(ctx context.Context, task *Task) error
 	Delete(ctx context.Context, id uint) error
+	Search(ctx context.Context, userID uint, query string) ([]Task, error)
 }
 
 type gormRepository struct {
@@ -63,6 +64,19 @@ func (r *gormRepository) Delete(ctx context.Context, id uint) error {
 		return ErrTaskNotFound
 	}
 	return nil
+}
+
+func (r *gormRepository) Search(ctx context.Context, userID uint, query string) ([]Task, error) {
+	var items []Task
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Where("(to_tsvector('russian', title) || to_tsvector('english', title)) @@ (plainto_tsquery('russian', ?) || plainto_tsquery('english', ?))", query, query).
+		Find(&items).Error
+		
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 type memoryRepository struct {
@@ -138,4 +152,22 @@ func (r *memoryRepository) Delete(_ context.Context, id uint) error {
 	}
 	delete(r.tasks, id)
 	return nil
+}
+
+func (r *memoryRepository) Search(_ context.Context, userID uint, query string) ([]Task, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	items := make([]Task, 0)
+	lowerQuery := strings.ToLower(query)
+
+	for _, task := range r.tasks {
+		if task.UserID == userID {
+			if strings.Contains(strings.ToLower(task.Title), lowerQuery) {
+				items = append(items, task)
+			}
+		}
+	}
+
+	return items, nil
 }

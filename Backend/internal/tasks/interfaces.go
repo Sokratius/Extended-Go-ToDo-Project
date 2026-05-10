@@ -9,3 +9,4 @@ type ServiceInterface interface {
 	Delete(ctx context.Context, userID, taskID uint) error
 	AnalyzeTask(ctx context.Context, userID uint, taskID uint) (*Task, error)
 }
+

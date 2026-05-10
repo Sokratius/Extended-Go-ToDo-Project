@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"todo-backend/internal/middleware"
+
 	"todo-backend/pkg/utils"
 )
 
@@ -18,13 +20,19 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router gin.IRouter) {
-	router.POST("/register", h.register)
-	router.POST("/login", h.login)
+	router.POST("/register", middleware.RateLimiter(), h.register)
+	router.POST("/login", middleware.RateLimiter(), h.login)
 }
 
 type authRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type authResponse struct {
+	Token    string `json:"token"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
 }
 
 type errorResponse struct {
@@ -37,12 +45,10 @@ type errorResponse struct {
 // @Accept json
 // @Produce json
 // @Param input body authRequest true "account info"
-// @Success 200 {integer} integer 1
-// @Success 201 {integer} integer 1
+// @Success 201 {object} authResponse
 // @Failure 400 {object} errorResponse
-// @Failure 404 {object} errorResponse
+// @Failure 409 {object} errorResponse
 // @Failure 500 {object} errorResponse
-// @Failure default {object} errorResponse
 // @Router /register [post]
 func (h *Handler) register(c *gin.Context) {
 	var req authRequest
@@ -64,9 +70,16 @@ func (h *Handler) register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":       user.ID,
-		"username": user.Username,
+	token, err := utils.GenerateToken(user.ID, user.Username)
+	if err != nil {
+		utils.JSONError(c, http.StatusInternalServerError, "failed to generate token")
+		return
+	}
+
+	c.JSON(http.StatusCreated, authResponse{
+		Token:    token,
+		ID:       user.ID,
+		Username: user.Username,
 	})
 }
 
@@ -76,7 +89,7 @@ func (h *Handler) register(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        request  body  authRequest  true "account info"
-// @Success      200  {object}  errorResponse
+// @Success      200  {object}  authResponse
 // @Failure      400  {object}  errorResponse
 // @Failure      401  {object}  errorResponse
 // @Failure      500  {object}  errorResponse
@@ -98,9 +111,15 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":       user.ID,
-		"username": user.Username,
-		"message":  "login successful; use X-User-ID header for /tasks",
+	token, err := utils.GenerateToken(user.ID, user.Username)
+	if err != nil {
+		utils.JSONError(c, http.StatusInternalServerError, "failed to generate token")
+		return
+	}
+
+	c.JSON(http.StatusOK, authResponse{
+		Token:    token,
+		ID:       user.ID,
+		Username: user.Username,
 	})
 }
