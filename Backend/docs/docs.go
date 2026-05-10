@@ -344,12 +344,82 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/tasks/{id}/analyze": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send task to AI to generate summary, tags, and priority",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "Analyze Task with AI",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "analyzed_task",
+                        "schema": {
+                            "$ref": "#/definitions/tasks.Task"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/tasks.errorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/tasks.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/tasks.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/tasks.errorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "tasks.Task": {
             "type": "object",
             "properties": {
+                "ai_priority": {
+                    "type": "string"
+                },
+                "ai_summary": {
+                    "type": "string"
+                },
+                "ai_tags": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },

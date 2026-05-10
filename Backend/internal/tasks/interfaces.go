@@ -7,4 +7,6 @@ type ServiceInterface interface {
 	Create(ctx context.Context, userID uint, title string) (*Task, error)
 	Update(ctx context.Context, userID, taskID uint, title *string, done *bool) (*Task, error)
 	Delete(ctx context.Context, userID, taskID uint) error
+	AnalyzeTask(ctx context.Context, userID uint, taskID uint) (*Task, error)
 }
+

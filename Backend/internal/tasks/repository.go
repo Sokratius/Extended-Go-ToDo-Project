@@ -70,7 +70,7 @@ func (r *gormRepository) Search(ctx context.Context, userID uint, query string) 
 	var items []Task
 	err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
-		Where("(to_tsvector('russian', title) || to_tsvector('english', title)) @@ (plainto_tsquery('russian', ?) || plainto_tsquery('english', ?))", query, query)
+		Where("(to_tsvector('russian', title) || to_tsvector('english', title)) @@ (plainto_tsquery('russian', ?) || plainto_tsquery('english', ?))", query, query).
 		Find(&items).Error
 		
 	if err != nil {
