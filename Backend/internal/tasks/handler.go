@@ -200,7 +200,11 @@ func (h *Handler) delete(c *gin.Context) {
 // @Router /tasks/{id}/analyze [post]
 // @Security BearerAuth
 func (h *Handler) Analyze(c *gin.Context) {
-	userID := uint(1)
+	userID := middleware.GetUserID(c)
+	if userID == 0 { 
+		utils.JSONError(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	taskID, ok := parseTaskID(c)
 	if !ok {
